@@ -1,0 +1,309 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" id="Definitions_Padaria" targetNamespace="http://bpmn.io/schema/bpmn" exporter="OpenAI" exporterVersion="1.0">
+  <bpmn:message id="Message_PaymentRequest" name="Solicitação de pagamento"/>
+  <bpmn:message id="Message_PaymentResult" name="Resultado do pagamento"/>
+  <bpmn:collaboration id="Collaboration_Padaria">
+    <bpmn:participant id="Participant_Padaria" name="Padaria" processRef="Process_Padaria"/>
+    <bpmn:participant id="Participant_Payment" name="Operadora de pagamento" processRef="Process_Payment"/>
+    <bpmn:messageFlow id="MessageFlow_Request" name="Solicitação de pagamento" sourceRef="Task_RequestPayment" targetRef="Start_PaymentRequest" messageRef="Message_PaymentRequest"/>
+    <bpmn:messageFlow id="MessageFlow_Result" name="Resultado do pagamento" sourceRef="Task_SendResult" targetRef="Event_PaymentResult" messageRef="Message_PaymentResult"/>
+  </bpmn:collaboration>
+  <bpmn:process id="Process_Padaria" name="Processo de venda na padaria" isExecutable="false">
+    <bpmn:laneSet id="LaneSet_Padaria">
+      <bpmn:lane id="Lane_Caixa" name="Caixa">
+        <bpmn:flowNodeRef>Start_Order</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_RegisterItems</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_NotifyCustomer</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_Unavailable</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_CalculateTotal</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_RequestPayment</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Event_PaymentResult</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_Payment</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_InformDeclined</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_Declined</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_ParallelSplit</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_EmitReceipt</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_ParallelJoin</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_DeliverProducts</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_Completed</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_Estoque" name="Estoque">
+        <bpmn:flowNodeRef>Task_CheckStock</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_Stock</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_RecordUnavailable</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_UpdateStock</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+    <bpmn:startEvent id="Start_Order" name="Cliente faz pedido"/>
+    <bpmn:userTask id="Task_RegisterItems" name="Registrar itens do pedido"/>
+    <bpmn:userTask id="Task_CheckStock" name="Conferir disponibilidade dos produtos"/>
+    <bpmn:exclusiveGateway id="Gateway_Stock" name="Todos os produtos disponíveis?" gatewayDirection="Diverging"/>
+    <bpmn:userTask id="Task_RecordUnavailable" name="Registrar falta de estoque"/>
+    <bpmn:userTask id="Task_NotifyCustomer" name="Avisar cliente sobre indisponibilidade"/>
+    <bpmn:endEvent id="End_Unavailable" name="Pedido não realizado"/>
+    <bpmn:userTask id="Task_CalculateTotal" name="Calcular total da compra"/>
+    <bpmn:sendTask id="Task_RequestPayment" name="Solicitar autorização de pagamento" messageRef="Message_PaymentRequest"/>
+    <bpmn:intermediateCatchEvent id="Event_PaymentResult" name="Resultado do pagamento recebido">
+      <bpmn:messageEventDefinition id="Event_PaymentResult_MessageDefinition" messageRef="Message_PaymentResult"/>
+    </bpmn:intermediateCatchEvent>
+    <bpmn:exclusiveGateway id="Gateway_Payment" name="Pagamento aprovado?" gatewayDirection="Diverging"/>
+    <bpmn:userTask id="Task_InformDeclined" name="Informar pagamento recusado"/>
+    <bpmn:endEvent id="End_Declined" name="Venda cancelada"/>
+    <bpmn:parallelGateway id="Gateway_ParallelSplit" gatewayDirection="Diverging"/>
+    <bpmn:userTask id="Task_EmitReceipt" name="Emitir comprovante da venda"/>
+    <bpmn:userTask id="Task_UpdateStock" name="Dar baixa no estoque"/>
+    <bpmn:parallelGateway id="Gateway_ParallelJoin" gatewayDirection="Converging"/>
+    <bpmn:userTask id="Task_DeliverProducts" name="Entregar produtos ao cliente"/>
+    <bpmn:endEvent id="End_Completed" name="Venda concluída"/>
+    <bpmn:sequenceFlow id="Flow_Start_Register" sourceRef="Start_Order" targetRef="Task_RegisterItems"/>
+    <bpmn:sequenceFlow id="Flow_Register_CheckStock" sourceRef="Task_RegisterItems" targetRef="Task_CheckStock"/>
+    <bpmn:sequenceFlow id="Flow_CheckStock_Gateway" sourceRef="Task_CheckStock" targetRef="Gateway_Stock"/>
+    <bpmn:sequenceFlow id="Flow_Stock_Yes" sourceRef="Gateway_Stock" targetRef="Task_CalculateTotal" name="Sim"/>
+    <bpmn:sequenceFlow id="Flow_Stock_No" sourceRef="Gateway_Stock" targetRef="Task_RecordUnavailable" name="Não"/>
+    <bpmn:sequenceFlow id="Flow_Record_Notify" sourceRef="Task_RecordUnavailable" targetRef="Task_NotifyCustomer"/>
+    <bpmn:sequenceFlow id="Flow_Notify_EndUnavailable" sourceRef="Task_NotifyCustomer" targetRef="End_Unavailable"/>
+    <bpmn:sequenceFlow id="Flow_Calculate_Request" sourceRef="Task_CalculateTotal" targetRef="Task_RequestPayment"/>
+    <bpmn:sequenceFlow id="Flow_Request_Result" sourceRef="Task_RequestPayment" targetRef="Event_PaymentResult"/>
+    <bpmn:sequenceFlow id="Flow_Result_PaymentGateway" sourceRef="Event_PaymentResult" targetRef="Gateway_Payment"/>
+    <bpmn:sequenceFlow id="Flow_Payment_Yes" sourceRef="Gateway_Payment" targetRef="Gateway_ParallelSplit" name="Sim"/>
+    <bpmn:sequenceFlow id="Flow_Payment_No" sourceRef="Gateway_Payment" targetRef="Task_InformDeclined" name="Não"/>
+    <bpmn:sequenceFlow id="Flow_Declined_End" sourceRef="Task_InformDeclined" targetRef="End_Declined"/>
+    <bpmn:sequenceFlow id="Flow_Split_Receipt" sourceRef="Gateway_ParallelSplit" targetRef="Task_EmitReceipt"/>
+    <bpmn:sequenceFlow id="Flow_Split_Stock" sourceRef="Gateway_ParallelSplit" targetRef="Task_UpdateStock"/>
+    <bpmn:sequenceFlow id="Flow_Receipt_Join" sourceRef="Task_EmitReceipt" targetRef="Gateway_ParallelJoin"/>
+    <bpmn:sequenceFlow id="Flow_Stock_Join" sourceRef="Task_UpdateStock" targetRef="Gateway_ParallelJoin"/>
+    <bpmn:sequenceFlow id="Flow_Join_Deliver" sourceRef="Gateway_ParallelJoin" targetRef="Task_DeliverProducts"/>
+    <bpmn:sequenceFlow id="Flow_Deliver_End" sourceRef="Task_DeliverProducts" targetRef="End_Completed"/>
+  </bpmn:process>
+  <bpmn:process id="Process_Payment" name="Processo de autorização de pagamento" isExecutable="false">
+    <bpmn:startEvent id="Start_PaymentRequest" name="Solicitação de pagamento recebida">
+      <bpmn:messageEventDefinition id="Start_PaymentRequest_MessageDefinition" messageRef="Message_PaymentRequest"/>
+    </bpmn:startEvent>
+    <bpmn:serviceTask id="Task_ValidatePayment" name="Validar dados do pagamento"/>
+    <bpmn:sendTask id="Task_SendResult" name="Enviar resultado do pagamento" messageRef="Message_PaymentResult"/>
+    <bpmn:endEvent id="End_Payment" name="Resposta enviada"/>
+    <bpmn:sequenceFlow id="Flow_PaymentStart_Validate" sourceRef="Start_PaymentRequest" targetRef="Task_ValidatePayment"/>
+    <bpmn:sequenceFlow id="Flow_PaymentValidate_Send" sourceRef="Task_ValidatePayment" targetRef="Task_SendResult"/>
+    <bpmn:sequenceFlow id="Flow_PaymentSend_End" sourceRef="Task_SendResult" targetRef="End_Payment"/>
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_Padaria">
+    <bpmndi:BPMNPlane id="BPMNPlane_Padaria" bpmnElement="Collaboration_Padaria">
+      <bpmndi:BPMNShape id="Shape_Participant_Payment" bpmnElement="Participant_Payment" isHorizontal="true" isExpanded="true">
+        <dc:Bounds x="60" y="120" width="3060" height="290"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Participant_Padaria" bpmnElement="Participant_Padaria" isHorizontal="true" isExpanded="true">
+        <dc:Bounds x="60" y="500" width="3060" height="800"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_Caixa" bpmnElement="Lane_Caixa" isHorizontal="true">
+        <dc:Bounds x="60" y="500" width="3060" height="400"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_Estoque" bpmnElement="Lane_Estoque" isHorizontal="true">
+        <dc:Bounds x="60" y="900" width="3060" height="400"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Start_Order" bpmnElement="Start_Order">
+        <dc:Bounds x="232" y="672" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_RegisterItems" bpmnElement="Task_RegisterItems">
+        <dc:Bounds x="310" y="652" width="150" height="76"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_CheckStock" bpmnElement="Task_CheckStock">
+        <dc:Bounds x="500" y="1040" width="175" height="76"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Gateway_Stock" bpmnElement="Gateway_Stock">
+        <dc:Bounds x="730" y="1053" width="50" height="50"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_RecordUnavailable" bpmnElement="Task_RecordUnavailable">
+        <dc:Bounds x="835" y="1143" width="155" height="76"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_NotifyCustomer" bpmnElement="Task_NotifyCustomer">
+        <dc:Bounds x="1020" y="755" width="170" height="76"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_Unavailable" bpmnElement="End_Unavailable">
+        <dc:Bounds x="1301" y="774" width="38" height="38"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_CalculateTotal" bpmnElement="Task_CalculateTotal">
+        <dc:Bounds x="850" y="652" width="155" height="76"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_RequestPayment" bpmnElement="Task_RequestPayment">
+        <dc:Bounds x="1190" y="652" width="170" height="76"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Event_PaymentResult" bpmnElement="Event_PaymentResult">
+        <dc:Bounds x="1812" y="672" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Gateway_Payment" bpmnElement="Gateway_Payment">
+        <dc:Bounds x="1875" y="665" width="50" height="50"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_InformDeclined" bpmnElement="Task_InformDeclined">
+        <dc:Bounds x="1980" y="755" width="160" height="76"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_Declined" bpmnElement="End_Declined">
+        <dc:Bounds x="2231" y="774" width="38" height="38"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Gateway_ParallelSplit" bpmnElement="Gateway_ParallelSplit">
+        <dc:Bounds x="2275" y="665" width="50" height="50"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_EmitReceipt" bpmnElement="Task_EmitReceipt">
+        <dc:Bounds x="2370" y="652" width="170" height="76"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_UpdateStock" bpmnElement="Task_UpdateStock">
+        <dc:Bounds x="2370" y="1018" width="170" height="76"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Gateway_ParallelJoin" bpmnElement="Gateway_ParallelJoin">
+        <dc:Bounds x="2615" y="815" width="50" height="50"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_DeliverProducts" bpmnElement="Task_DeliverProducts">
+        <dc:Bounds x="2730" y="652" width="160" height="76"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_Completed" bpmnElement="End_Completed">
+        <dc:Bounds x="2981" y="671" width="38" height="38"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Start_PaymentRequest" bpmnElement="Start_PaymentRequest">
+        <dc:Bounds x="1262" y="242" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_ValidatePayment" bpmnElement="Task_ValidatePayment">
+        <dc:Bounds x="1370" y="222" width="160" height="76"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_SendResult" bpmnElement="Task_SendResult">
+        <dc:Bounds x="1760" y="222" width="190" height="76"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_Payment" bpmnElement="End_Payment">
+        <dc:Bounds x="2011" y="241" width="38" height="38"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_Start_Register" bpmnElement="Flow_Start_Register">
+        <di:waypoint x="268" y="690"/>
+        <di:waypoint x="290" y="690"/>
+        <di:waypoint x="290" y="690"/>
+        <di:waypoint x="310" y="690"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Register_CheckStock" bpmnElement="Flow_Register_CheckStock">
+        <di:waypoint x="460" y="690"/>
+        <di:waypoint x="480" y="690"/>
+        <di:waypoint x="480" y="1078"/>
+        <di:waypoint x="500" y="1078"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_CheckStock_Gateway" bpmnElement="Flow_CheckStock_Gateway">
+        <di:waypoint x="675" y="1078"/>
+        <di:waypoint x="730" y="1078"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Stock_Yes" bpmnElement="Flow_Stock_Yes">
+        <di:waypoint x="780" y="1078"/>
+        <di:waypoint x="805" y="1078"/>
+        <di:waypoint x="805" y="690"/>
+        <di:waypoint x="850" y="690"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="790" y="1000" width="36" height="20"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Stock_No" bpmnElement="Flow_Stock_No">
+        <di:waypoint x="755" y="1103"/>
+        <di:waypoint x="755" y="1181"/>
+        <di:waypoint x="835" y="1181"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="775" y="1114" width="42" height="20"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Record_Notify" bpmnElement="Flow_Record_Notify">
+        <di:waypoint x="990" y="1181"/>
+        <di:waypoint x="1005" y="1181"/>
+        <di:waypoint x="1005" y="793"/>
+        <di:waypoint x="1020" y="793"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Notify_EndUnavailable" bpmnElement="Flow_Notify_EndUnavailable">
+        <di:waypoint x="1190" y="793"/>
+        <di:waypoint x="1301" y="793"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Calculate_Request" bpmnElement="Flow_Calculate_Request">
+        <di:waypoint x="1005" y="690"/>
+        <di:waypoint x="1190" y="690"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Request_Result" bpmnElement="Flow_Request_Result">
+        <di:waypoint x="1360" y="690"/>
+        <di:waypoint x="1811" y="690"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Result_PaymentGateway" bpmnElement="Flow_Result_PaymentGateway">
+        <di:waypoint x="1849" y="690"/>
+        <di:waypoint x="1875" y="690"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Payment_Yes" bpmnElement="Flow_Payment_Yes">
+        <di:waypoint x="1925" y="690"/>
+        <di:waypoint x="2275" y="690"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="2050" y="662" width="36" height="20"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Payment_No" bpmnElement="Flow_Payment_No">
+        <di:waypoint x="1900" y="715"/>
+        <di:waypoint x="1900" y="793"/>
+        <di:waypoint x="1980" y="793"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1910" y="743" width="42" height="20"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Declined_End" bpmnElement="Flow_Declined_End">
+        <di:waypoint x="2140" y="793"/>
+        <di:waypoint x="2231" y="793"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Split_Receipt" bpmnElement="Flow_Split_Receipt">
+        <di:waypoint x="2325" y="690"/>
+        <di:waypoint x="2370" y="690"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Split_Stock" bpmnElement="Flow_Split_Stock">
+        <di:waypoint x="2300" y="715"/>
+        <di:waypoint x="2300" y="1056"/>
+        <di:waypoint x="2370" y="1056"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Receipt_Join" bpmnElement="Flow_Receipt_Join">
+        <di:waypoint x="2540" y="690"/>
+        <di:waypoint x="2580" y="690"/>
+        <di:waypoint x="2580" y="840"/>
+        <di:waypoint x="2615" y="840"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Stock_Join" bpmnElement="Flow_Stock_Join">
+        <di:waypoint x="2540" y="1056"/>
+        <di:waypoint x="2590" y="1056"/>
+        <di:waypoint x="2590" y="840"/>
+        <di:waypoint x="2615" y="840"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Join_Deliver" bpmnElement="Flow_Join_Deliver">
+        <di:waypoint x="2665" y="840"/>
+        <di:waypoint x="2695" y="840"/>
+        <di:waypoint x="2695" y="690"/>
+        <di:waypoint x="2730" y="690"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Deliver_End" bpmnElement="Flow_Deliver_End">
+        <di:waypoint x="2890" y="690"/>
+        <di:waypoint x="2981" y="690"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_PaymentStart_Validate" bpmnElement="Flow_PaymentStart_Validate">
+        <di:waypoint x="1298" y="260"/>
+        <di:waypoint x="1370" y="260"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_PaymentValidate_Send" bpmnElement="Flow_PaymentValidate_Send">
+        <di:waypoint x="1530" y="260"/>
+        <di:waypoint x="1760" y="260"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_PaymentSend_End" bpmnElement="Flow_PaymentSend_End">
+        <di:waypoint x="1950" y="260"/>
+        <di:waypoint x="2012" y="260"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_MessageFlow_Request" bpmnElement="MessageFlow_Request">
+        <di:waypoint x="1275" y="652"/>
+        <di:waypoint x="1275" y="440"/>
+        <di:waypoint x="1280" y="440"/>
+        <di:waypoint x="1280" y="278"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1095" y="455" width="150" height="22"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_MessageFlow_Result" bpmnElement="MessageFlow_Result">
+        <di:waypoint x="1855" y="298"/>
+        <di:waypoint x="1855" y="455"/>
+        <di:waypoint x="1830" y="455"/>
+        <di:waypoint x="1830" y="671"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1860" y="455" width="155" height="22"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>
